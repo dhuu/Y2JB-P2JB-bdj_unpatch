@@ -5,7 +5,7 @@ Based on [Gezine/Y2JB](https://github.com/Gezine/Y2JB), chained with [matem6/P2J
 ## Brief
 
 This is just for **simple + local (no network needed) + auto** unpatch bdj via Y2JB with P2JB.  
-If lucky, one time run would succeed and switch to BD-UN-JB for PS5 FW 10.20-12.00.
+If lucky, one time run (~50 minutes) would succeed and switch to BD-UN-JB for PS5 FW 10.20-12.00.
 
 ## Requirements
 
@@ -22,6 +22,7 @@ No need to use this. Just send bdj_unpatch.elf to elfldr would do.
 ## Setup Instructions
 
 Network connection is **NOT** necessary for this completely local implementation. But it's important to configure network to block PSN and updates when you need a network connection.
+
 ### Configure Network DNS Settings (Optional, but highly recommended)
 
 1. Navigate to **Settings > Network > Settings > Set Up Internet Connection**
@@ -46,13 +47,16 @@ The DNS configuration is critical for Y2JB to function properly for two technica
 ### Non-Jailbroken PS5
 
 1. Download the backup file from the releases page
-2. Follow Sony's official guide to [restore backup data from USB](https://www.playstation.com/en-gb/support/hardware/back-up-ps5-data-USB/)
-
-**⚠️ WARNING:** Restoring backup data **WILL FACTORY RESET YOUR PS5**. All data on your console will be erased.
+2. Follow Sony's official guide to [restore backup data from USB](https://www.playstation.com/en-gb/support/hardware/back-up-ps5-data-USB/)  
+   **⚠️ WARNING:** Restoring backup data **WILL FACTORY RESET YOUR PS5**. All data on your console will be erased.
+3. Hit Y2B and wait for ~50 minutes. If logging on screen shows 'complete', it means success. Just shutdown/reboot. If failed reboot and try again.  
+   **⚠️ WARNING:** It's normal that kernel panic would happen when closing Y2B after success. It's current p2jb.js's issue. But it doesn't affect bdj_unpatch.  
+   Mostly, PS5 would repair storage automatically when startup and reboot into system normally. Or maybe other bad things might happen because of kernel panic.
+4. After bdj_unpatch success, use BD-UN-JB disc for fast and stable method. Y2B is no longer needed and can be deleted.
 
 ## Sending Payloads
 
-(Re-run it if already jailbroken, remote js loader would run.)
+**No need** to do this for bdj_unpatch. But if you run Y2B when already jailbroken, remote js loader would run.
 
 **Note:** The Remote JS Server does not always use port 50000. While it typically defaults to port 50000, it may occasionally use a different port - this is normal behavior, not a bug.
 
@@ -73,7 +77,7 @@ python payload_sender.py 192.168.1.100 9020 payload.bin
 
 ## Credits
 
-* **[Gezine](https://github.com/Gezine)** - [Y2JB](https://github.com/Gezine/Y2JB) creator and [bdj_unpatch](https://github.com/Gezine/BD-UN-JB/tree/main/bdj_unpatch) creator.
+* **[Gezine](https://github.com/Gezine)** - [Y2JB](https://github.com/Gezine/Y2JB) creator and [bdj_unpatch](https://github.com/Gezine/BD-UN-JB/tree/main/bdj_unpatch) creator. Original [p2jb.lua](https://github.com/Gezine/Luac0re/blob/main/payloads/p2jb.lua).
 * **[shahrilnet](https://github.com/shahrilnet), [null_ptr](https://github.com/n0llptr)** - Referenced many codes from [Remote Lua Loader](https://github.com/shahrilnet/remote_lua_loader)
 * **[BenNoxXD](https://github.com/BenNoxXD)** - [ClosePlayer](https://github.com/BenNoxXD/PS5-BDJ-HEN-loader) reference
 * **[ntfargo](https://github.com/ntfargo)** - Thanks for providing V8 CVEs and CTF writeups
@@ -84,6 +88,10 @@ python payload_sender.py 192.168.1.100 9020 payload.bin
 * **[Dr.Yenyen](https://github.com/DrYenyen) and PS5 R&D community** - Testing Y2JB
 * **Rush** - Creating Y2JB backup file
 * **[matem6](https://github.com/matem6)** - Porting P2JB to Y2JB.
+- **Edigax** — help with the multi-core leak implementation, bringing
+  the `cr_ref` leak down from ~2 hours to ~48 minutes.
+- **[notmaj0r] remote_lua_loader p2jb port** — used as a secondary
+  reference during the port by matem6.
 
 ## Disclaimer
 
