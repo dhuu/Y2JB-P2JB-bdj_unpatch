@@ -88,10 +88,9 @@ python payload_sender.py 192.168.1.100 9020 payload.bin
 * **[Dr.Yenyen](https://github.com/DrYenyen) and PS5 R&D community** - Testing Y2JB
 * **Rush** - Creating Y2JB backup file
 * **[matem6](https://github.com/matem6)** - Porting P2JB to Y2JB.
-- **Edigax** — help with the multi-core leak implementation, bringing
-  the `cr_ref` leak down from ~2 hours to ~48 minutes.
-- **[notmaj0r] remote_lua_loader p2jb port** — used as a secondary
-  reference during the port by matem6.
+* **Edigax** — help with the multi-core leak implementation, bringing the `cr_ref` leak down from ~2 hours to ~48 minutes.
+* **[notmaj0r remote_lua_loader p2jb port](https://github.com/notmaj0r/remote_lua_loader/blob/main/payloads/P2JB.lua)** — used as a secondary reference during the port by matem6.
+* **[ufm42](https://github.com/ufm42)** - [kexp](https://github.com/ufm42/kexp) used for PS5 post JB all-in-one shellcode
 
 ## Disclaimer
 

