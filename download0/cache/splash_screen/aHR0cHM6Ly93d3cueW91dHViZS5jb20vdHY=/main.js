@@ -932,7 +932,7 @@ function trigger() {
             nanosleep(3 * 1_000_000_000);
             await load_localscript('p2jb_bdjunpatch.js');
         }
-        
+
     } catch (e) {                
         await log('EXCEPTION: ' + e.message);
         await log(e.stack);
